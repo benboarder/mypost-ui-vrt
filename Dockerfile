@@ -76,9 +76,13 @@ RUN \
   chmod +x /opt/slimerjs/slimerjs.sh && \
   ln -s /opt/slimerjs/slimerjs.sh /usr/bin/slimerjs
 
-# RUN \
+RUN \
   # BackstopJS
-  # echo "Installing BackstopJS v${BACKSTOPJS_VERSION}..." && \
+  echo "Installing BackstopJS v${BACKSTOPJS_VERSION}..." && \
+  npm install --prefix /opt/backstop backstopjs && \
+  # git clone https://github.com/garris/BackstopJS.git /opt/backstopjs && \
+  # chown -R node /usr/local/lib /usr/local/include /usr/local/share /usr/local/bin && \
+  ln -s /opt/backstop/cli/index.js /usr/bin/backstop
   # npm install -g backstopjs@${BACKSTOPJS_VERSION}
 
 
