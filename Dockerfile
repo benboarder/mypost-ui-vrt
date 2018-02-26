@@ -43,48 +43,27 @@ ADD display-chromium /usr/bin/display-chromium
 ADD xvfb-chromium /usr/bin/xvfb-chromium
 ADD xvfb-chromium-webgl /usr/bin/xvfb-chromium-webgl
 
-ARG PHANTOMJS_VERSION=2.1.1
+ARG PHANTOMJS_VERSION=latest
 ARG CASPERJS_VERSION=1.1.4
 ARG SLIMERJS_VERSION=0.10.3
 ARG BACKSTOPJS_VERSION=2.6.14
+ARG PHANTOMCSS_VERSION=latest
 
-# Installing dependencies from archives - not only this allows us to control versions,
-# but the resulting image size is 130MB+ less (!) compared to an npm install (440MB vs 575MB).
-RUN \
-  mkdir -p /opt && \
-  # PhantomJS
-  echo "Downloading PhantomJS v${PHANTOMJS_VERSION}..." && \
-  curl -sL "https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-${PHANTOMJS_VERSION}-linux-x86_64.tar.bz2" | tar jx && \
-  mv phantomjs-${PHANTOMJS_VERSION}-linux-x86_64 /opt/phantomjs && \
-  ln -s /opt/phantomjs/bin/phantomjs /usr/bin/phantomjs
+ARG USER_HOME_DIR="/tmp"
+ARG APP_DIR="/src"
 
-RUN \
-  # CasperJS
-  echo "Downloading CasperJS v${CASPERJS_VERSION}..." && \
-  curl -sL "https://github.com/casperjs/casperjs/archive/${CASPERJS_VERSION}.tar.gz" | tar zx && \
-  mv casperjs-${CASPERJS_VERSION} /opt/casperjs && \
-  ln -s /opt/casperjs/bin/casperjs /usr/bin/casperjs
+ARG USER_ID=1000
 
-RUN \
-  # SlimerJS
-  echo "Downloading SlimerJS v${SLIMERJS_VERSION}..." && \
-  curl -sL -O "http://download.slimerjs.org/releases/${SLIMERJS_VERSION}/slimerjs-${SLIMERJS_VERSION}.zip" && \
-  unzip -q slimerjs-${SLIMERJS_VERSION}.zip && rm -f slimerjs-${SLIMERJS_VERSION}.zip && \
-  mv slimerjs-${SLIMERJS_VERSION} /opt/slimerjs && \
-  # Run slimer with xvfb
-  echo '#!/usr/bin/env bash\nxvfb-run /opt/slimerjs/slimerjs "$@"' > /opt/slimerjs/slimerjs.sh && \
-  chmod +x /opt/slimerjs/slimerjs.sh && \
-  ln -s /opt/slimerjs/slimerjs.sh /usr/bin/slimerjs
+ENV HOME "$USER_HOME_DIR"
 
-RUN \
-  # BackstopJS
-  echo "Installing BackstopJS v${BACKSTOPJS_VERSION}..." && \
-  npm install --prefix /opt/backstop backstopjs && \
-  # git clone https://github.com/garris/BackstopJS.git /opt/backstopjs && \
-  # chown -R node /usr/local/lib /usr/local/include /usr/local/share /usr/local/bin && \
-  ln -s /opt/backstop/cli/index.js /usr/bin/backstop
-  # npm install -g backstopjs@${BACKSTOPJS_VERSION}
-
+RUN set -xe \
+    && curl -sL https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 > /usr/bin/dumb-init \
+    && chmod +x /usr/bin/dumb-init \
+    && mkdir -p $USER_HOME_DIR \
+    && chown $USER_ID $USER_HOME_DIR \
+    && chmod a+rw $USER_HOME_DIR \
+    && chown -R node /usr/local/lib /usr/local/include /usr/local/share /usr/local/bin \
+    && (cd "$USER_HOME_DIR"; su node -c "npm i -g phantomjs-prebuilt@$PHANTOMJS_VERSION casperjs@$CASPERJS_VERSION slimerjs@$SLIMERJS_VERSION backstopjs@$BACKSTOPJS_VERSION phantomcss@$PHANTOMCSS_VERSION; npm cache clean --force")
 
 # RUN \
 #   addgroup -g 10101 bamboo && \
@@ -92,6 +71,9 @@ RUN \
 #   mkdir /src && \
 #   chown -R bamboo:bamboo /src
 
-WORKDIR /src
+WORKDIR $APP_DIR
+EXPOSE 4200
 
-ENTRYPOINT ["backstop"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+USER $USER_ID
